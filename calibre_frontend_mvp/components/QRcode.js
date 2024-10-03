@@ -4,7 +4,7 @@ import { StyleSheet, View, Text, StatusBar, Button, TouchableOpacity, Image} fro
 import { QRCode } from 'react-native-custom-qr-codes-expo';
 
 
-  
+  {/*
 
 
 class QR extends React.Component {
@@ -17,4 +17,4 @@ class QR extends React.Component {
 
 
 
-export default QR;
+export default QR; */}
