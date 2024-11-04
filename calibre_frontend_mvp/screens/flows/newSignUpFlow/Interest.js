@@ -15,18 +15,21 @@ import {BACKGROUND, RADIUS, COLOR, PLACEHOLDER, Neumorphism, NeumorphismInput,Co
 
 import { Dimensions } from 'react-native';
 
+// Set window dimensions for responsive styling
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
 export default ({ navigation, route }) => {
   
-
+  // Reference for pan animation
   const pan = useRef(new Animated.ValueXY()).current;
-
+  
+  // Create pan responder for drag-and-drop gestures
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
+        // Set initial position when dragging starts
         pan.setOffset({
           x: pan.x._value,
           y: pan.y._value
@@ -40,15 +43,17 @@ export default ({ navigation, route }) => {
         {useNativeDriver: false}
       ),
       onPanResponderRelease: () => {
+        // Flatten offset to reset position after release
         pan.flattenOffset();
       }
     })
   ).current;
 
-
+// Test access key and server name for API calls
 const access_key = "TEST123";
 const serverName = require('../../../appSettings/db.json');
 
+// Navigate to the next page with selected interests and user info
 const nextPage = (chosenInterests) => {
   console.log("\nBday: "+route.params.bday)
   console.log("Email: "+route.params.email)
@@ -74,7 +79,7 @@ const nextPage = (chosenInterests) => {
   });
 }
 
-
+// Handle press and validate minimum selection of 3 interests
 const handlePress = (items) => {
   if(items.length < 3){
     alert("Please select a minimum of 3 interests, you have only selected "+ items.length +" interests")
@@ -83,16 +88,12 @@ const handlePress = (items) => {
   }
 }
 
+// States to manage selected interests, fetched data, and toggle between views
 const [selectedId, setSelectedId] = useState([]);
-
 const [DATA, setDATA] = useState([]);
 const [showSelected, setShowSelected] = useState(false);
 
- 
-
-
-
-
+// Fetch interests data from server on component load
 const fetchData = () => {
     fetch(serverName.app.db + 'things.php', { 
         method: 'post',
@@ -113,9 +114,11 @@ const fetchData = () => {
             console.error(error);
         });
     }
- 
-    useEffect(() => {fetchData()},[])
     
+    // Call fetchData when component mounts
+    useEffect(() => {fetchData()},[])
+  
+  // Select an interest if not already selected, up to a max of 7
   const selectItem = (id) => {
     let valid = checkItem(id);
     if(valid == false){
@@ -130,6 +133,7 @@ const fetchData = () => {
     }
   }
   
+  // Check if an item is already selected
   const checkItem =  (id) => {
     let valid = false;
     selectedId.map(sID => {
@@ -139,7 +143,8 @@ const fetchData = () => {
     })
     return valid
   };
-
+  
+  // Deselect an item by removing it from the selected array
   const deSelectItem = (id) => {
     let selected = []
     selectedId.map(sID => {
@@ -149,10 +154,9 @@ const fetchData = () => {
     selected.splice(index, 1)
     setSelectedId(selected)
  }
-
- 
+  
+  // Render list of selectable interests
   const Interests = () => { 
-
       return(
             <View style={styles.row}>
               {DATA.map(item => {
@@ -162,7 +166,8 @@ const fetchData = () => {
             </View>
         );   
   }
-
+  
+  // Render list of selectable interests
   const InterestsSelected = () => {  
   return(
     <View style={styles.row}>
@@ -173,11 +178,9 @@ const fetchData = () => {
   );   
 }
 
-  
+  // Individual Interest component for each selectable interest
   const Interest = (props) => {
-
     const ref = React.useRef();
-
     const [bgColor, setbgColor] = React.useState(false);
     
     return(
@@ -195,10 +198,9 @@ const fetchData = () => {
       );
   }
   
+  // Component to display selected interest items for deselection
   const InterestSelected = (props) => {
-
     const ref = React.useRef();
-
     const [bgColor, setbgColor] = React.useState(false);
     
     return(
@@ -215,34 +217,26 @@ const fetchData = () => {
       
       );
   }
-  const fadeIn = {
-    from: {
-      opacity: 0,
-    },
-    to: {
-      opacity: 1,
-    },
-  };
-  const progress = {
-    from: {
-      width: '63%',
-    },
-    to:{
-      width: '79%',
-    }
-  };
+  
+  // Animation settings
+  const fadeIn = { from: { opacity: 0 }, to: { opacity: 1} };
+  const progress = { from: { width: '63%'}, to:{ width: '79%'} };
+  
+  // Main component return
   return (
     <Container >
+      {/* Progress bar animation */}
         <View style={ProgressBar.progressBar}>
           <Animatable.View animation={progress} style={ProgressBar.progress}></Animatable.View>
         </View>
-
+         
+         {/* Title and animated heading */}
         <Animatable.View animation={fadeIn} duration={2000} style={HeroContainer.container}>              
           <Text style={HeroContainer.text}>What is your <Text style={HeroContainer.greenText}>interest</Text>?</Text>
         </Animatable.View>
-
+        
+        {/* Interests selection container */}
         <View style={[NeumorphismInput.container, {height: '55%'}]}>
-          
           <View style={styles.titleView}>
             <Text style={styles.title}> {showSelected ? "Selected items, click to deselect" : "Select between 3 and 7 interests"} </Text>
           </View>
@@ -256,11 +250,14 @@ const fetchData = () => {
             >
               
               <View style={styles.box}>   */}
-
+              
+              {/* Scrollable area to view and select/deselect interests */}
               <ScrollView style={styles.scroll}>
+                {/* Display interests to select if `showSelected` is false */}
                 <View style={[(showSelected ? {display: 'none'} : "")]}>
                   <Interests/>
                 </View>
+                {/* Display selected interests if `showSelected` is true */}
                 <View style={[(showSelected ? "" : {display: 'none'})]}>
                   <InterestsSelected/>
                 </View>    
@@ -269,7 +266,8 @@ const fetchData = () => {
               
           </Animated.View> */}
         </View>
-
+        
+        {/* Action container with 'Next' button */}
         <View style={ActionContainer.actionContainerSignUp}>
           <View style={ActionContainer.actionContainerSignUpAvoiding}>
             <NeuButton
@@ -281,6 +279,8 @@ const fetchData = () => {
             </NeuButton>  
           </View>
         </View>
+        
+        {/* Toggle button to show selected interests or interest selection list */}
         <View style={{position: 'absolute', left: 20, bottom: '10%'}}>
         <View style={ActionContainer.actionContainerSignUpAvoiding}>
           <NeuButton onPress={() => showSelected ? setShowSelected(false) : setShowSelected(true)} width={50} height={50} color={BACKGROUND} borderRadius={RADIUS} >
@@ -291,6 +291,8 @@ const fetchData = () => {
           </NeuButton>
         </View> 
         </View>
+        
+        {/* Placeholder for an additional button on the right (e.g., search button), currently commented out */}
         <View  style={{position: 'absolute', right: 20, bottom: '10%'}}>
           <View style={ActionContainer.actionContainerSignUpAvoiding}>
             {/* <NeuButton width={50} height={50} color={BACKGROUND} borderRadius={RADIUS} >
