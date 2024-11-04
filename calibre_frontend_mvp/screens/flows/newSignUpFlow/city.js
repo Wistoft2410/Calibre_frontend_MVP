@@ -20,7 +20,7 @@ const windowHeight = Dimensions.get('window').height;
 export default ({ route, navigation }) => {
 
     // Google API key for PlacesInput component
-    const GOOGLE_API_KEY = 'AIzaSyBHtU7_napulWRahIUk6D1a5SW4iZwZeWM';
+    const GOOGLE_API_KEY = 'AIzaSyBth6_0sv06bYvW29eowv4lcdI6wdbGtbQ';
 
     // State variables
     const [buttonState, setButtonState] = React.useState(true);
