@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, TextInput, Text, StatusBar, KeyboardAvoidingView, TouchableOpacity, Keyboard,  ScrollView, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, TextInput, Text, StatusBar, KeyboardAvoidingView, Platform, TouchableOpacity, Keyboard,  ScrollView, TouchableWithoutFeedback } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 // import GoconInput from '../../../components/GoconInput';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -273,7 +273,7 @@ export default ({ navigation, route }) => {
             
           </View>
         </View>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{position: 'absolute', right: 20, bottom: '10%'}}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <View style={ActionContainer.actionContainerSignUpAvoiding}>
             <NeuButton width={50} height={50} color={BACKGROUND} borderRadius={RADIUS} onPressIn={() => handleHiddenPress()} onPressOut={() => handleHiddenPress()}>
                 {hiddenState ?  <Icon name="eye" size={20} color={COLOR} /> : <Icon name="eye-slash" size={20} color={COLOR} />}
