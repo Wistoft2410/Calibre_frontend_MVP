@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Calibre",
+    "slug": "Calibre",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/Calibre_icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#00f800"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.human-interface.calibre",
+      "buildNumber": "0.0.4"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+  
+}

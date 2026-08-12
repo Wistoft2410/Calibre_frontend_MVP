@@ -1,0 +1,39 @@
+{
+  "name": "react-native-neu-element",
+  "version": "1.1.9",
+  "description": "Neumorphism UI library for react-native",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "babel lib -d dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jamyth/react-native-neu-element.git"
+  },
+  "keywords": [
+    "react-native",
+    "react-component",
+    "react-native-component",
+    "neumorphism",
+    "mobile",
+    "UI",
+    "ios",
+    "android"
+  ],
+  "author": "Jamyth Luk",
+  "license": "MIT",
+  "dependencies": {
+    "babel-preset-minify": "^0.5.1",
+    "react-native-linear-gradient": "^2.5.6",
+    "react-native-reanimated": "^1.7.0",
+    "react-native-svg": "^11.0.1",
+    "react-native-text-gradient": "^0.1.7"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
+    "@babel/preset-react": "^7.8.3"
+  }
+}
