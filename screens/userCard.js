@@ -16,6 +16,7 @@ import {COLOR, darkGreen, lightGreen, Neumorphism, NeumorphismInput,Container, A
 
 import { Dimensions } from 'react-native';
 import {updateData} from './flows/editProfile/update'
+import {CARD_THEMES} from '../utils/profileTheme'
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
@@ -41,8 +42,12 @@ const UserCardSet = props => {
         description,
         job,
         education,
+        theme,
         ...rest
       } = props;
+
+    // Falls back to the default teal when no theme is supplied (own profile).
+    const cardTheme = theme || CARD_THEMES[0];
       const serverName = require('../appSettings/db.json');
 
       const  getAge = (dateString)=>{
@@ -63,7 +68,7 @@ const UserCardSet = props => {
     return(
       <Container style={{backgroundColor: BACKGROUND}}>
         <ScrollView style={{paddingBottom: 250}}>
-            <View style={styles.profile}>
+            <View style={[styles.profile, {backgroundColor: cardTheme.bg}]}>
                 <View style={styles.profileNameTagContainer}>
                   {settings ? (
                     < TouchableOpacity  onPress={() => editProfile("editName")}>
@@ -81,7 +86,7 @@ const UserCardSet = props => {
                   )}
                    
                 </View>  
-                    <View style={styles.profilePhotoContainer}>
+                    <View style={[styles.profilePhotoContainer, {borderColor: cardTheme.ring}]}>
                       {settings ? (
                         < TouchableOpacity  onPress={() => editProfile("editProfileImage")}>
                          {profileImage ? (

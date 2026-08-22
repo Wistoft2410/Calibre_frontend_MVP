@@ -426,24 +426,24 @@ export default ({ navigation, route }) => {
                 {/* Display title */}
                 <View style={styles.heading}>
                     {title == 'people' || title == 'event' || title == 'people-set' || title == 'event-set' || title == 'mes' ? (
-                        <View style={styles.heading}>
+                        <View style={styles.headingLines}>
                             {title == 'mes'? (
-                                <Text style={styles.headingTextBig}>Links</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingTextBig}>Links</Text>
                             ):(
                             title == 'people-set' ? (
-                                <Text style={styles.headingTextBigBig}>Your</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingTextBigBig}>Your</Text>
                             ):(
-                                <Text style={styles.headingText}>Discover</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingText}>Discover</Text>
                             ))}
                             {title == 'people' ? (
-                                <Text style={styles.headingTextBig}>People</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingTextBig}>People</Text>
                             ):(
                             title == 'mes' ? (
-                                <Text style={styles.headingTextBigBig}>Made</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingTextBigBig}>Made</Text>
                             ):(title == 'people-set' ? (
-                                <Text style={styles.headingText}>Profile</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingText}>Profile</Text>
                             ):(
-                                <Text style={styles.headingTextBigBig}>Events</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.headingTextBigBig}>Events</Text>
                             )))}
                         </View>
                     ) : null}
@@ -493,6 +493,7 @@ export default ({ navigation, route }) => {
             age={viewedProfile && viewedProfile.bday}
             city={viewedProfile && viewedProfile.city}
             currentCity={viewedProfile && viewedProfile.city}
+            theme={viewedProfile && viewedProfile.theme}
         />
     ) : title == "people-set" ? (
         <Profile open={()=> {open("userCard-set"); }} BACKGROUND={BACKGROUND}  profileImage={profileImage} interests={interests} firstName={firstName} lastName={lastName} age={age} city={city} email={email} gender={gender} phone={phone} currentCity={currentCity}/>
@@ -637,18 +638,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         
     },
+    // switch + heading + headerLogo must total 100%: RN won't shrink fixed widths.
     switch:{
-        left:'8%',
-        width: '25%',
+        left:'4%',
+        width: '23%',
         alignItems: 'center',
         top:-5,
     },
     heading:{
-        width: '50%', height: '100%',
+        width: '54%', height: '100%',
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',
-
+    },
+    // Inner wrapper stacks the two title words. It must NOT reuse `heading` —
+    // nesting that style halved the available width and broke words mid-word.
+    headingLines:{
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headingText: {
         fontSize: 18, 
@@ -670,7 +678,7 @@ const styles = StyleSheet.create({
     },
     // No right offset: the button sits near the screen edge, as in the prototype.
     headerLogo:{
-        width: '25%',
+        width: '23%',
         alignItems: 'center',
     },
     menuLogo: {

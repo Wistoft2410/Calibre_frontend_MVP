@@ -9,6 +9,7 @@ import { NeuView, NeuButton } from '../components/neu-element';
 import SwipeDeck from '../components/swipe/SwipeDeck';
 import { listDiscoverProfiles } from '../utils/profileService';
 import { interestsForDisplay } from '../utils/passions';
+import { withThemes, CARD_THEMES } from '../utils/profileTheme';
 import { RADIUS } from '../components/Style';
 
 import { Dimensions } from 'react-native';
@@ -34,15 +35,16 @@ const getAge = (dateString) => {
 // behind it.
 const ProfileCard = ({ profile, BACKGROUND, onPress }) => {
     const interests = interestsForDisplay(profile.interests).slice(0, 3);
+    const theme = profile.theme || CARD_THEMES[0];
 
     return (
         <TouchableOpacity activeOpacity={0.95} onPress={onPress} disabled={!onPress}>
             <NeuView height={neuHeight} width={neuWidth} color={BACKGROUND} borderRadius={25}>
-                <View style={styles.profile}>
+                <View style={[styles.profile, { backgroundColor: theme.bg }]}>
                     <View style={styles.profileNameTagContainer}>
                         <Text style={styles.profileNameTag}>{profile.firstName}, {getAge(profile.bday)}</Text>
                     </View>
-                    <View style={styles.profilePhotoContainer}>
+                    <View style={[styles.profilePhotoContainer, { borderColor: theme.ring }]}>
                         {profile.profileImage ? (
                             <Image
                                 style={styles.profilePhoto}
@@ -96,7 +98,7 @@ const Feed = forwardRef((props, ref) => {
     const deckRef = useRef();
 
     useEffect(() => {
-        listDiscoverProfiles().then(setProfiles);
+        listDiscoverProfiles().then(list => setProfiles(withThemes(list)));
     }, []);
 
     // Lets Menu's footer buttons drive the deck.
