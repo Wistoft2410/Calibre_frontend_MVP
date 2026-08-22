@@ -19,7 +19,7 @@ const windowHeight = Dimensions.get('window').height;
 export default ({ route, navigation }) => {
    
 
-    const GOOGLE_API_KEY = 'AIzaSyC1DL8gnppq5oNaBExpRynw-VI2_zGKkQM';
+    const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
 
     const [buttonState, setButtonState] = React.useState(true);
@@ -131,15 +131,21 @@ const handlePress = (city, cityLat, cityLng) => {
                         queryCountries={[countryCode]}
                         requiredCharactersBeforeSearch={0}
                         requiredTimeBeforeSearch={200}
-                        onSelect={place => {
-                        
+                        onSelect={(place, error) => {
+
+                            if (!place) {
+                                console.warn('Place lookup failed:', error?.message);
+                                alert("Couldn't look up that city. Please try again.");
+                                return;
+                            }
+
                             console.log("\nFormatted address: "+place.result.formatted_address)
                             console.log("Name: "+place.result.name)
-                            console.log("Location: lat: "+place.result.geometry.location.lat+" lng: "+place.result.geometry.location.lng) 
-                            
+                            console.log("Location: lat: "+place.result.geometry.location.lat+" lng: "+place.result.geometry.location.lng)
+
                             handlePress(place.result.name, place.result.geometry.location.lat, place.result.geometry.location.lng)
-                            
-                            
+
+
                         }}
                         queryTypes="(cities)"
                         

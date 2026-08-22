@@ -1,27 +1,14 @@
-import { storeToken, removeToken } from './tokenHelper';
-
 export const reducer = (prevState, action) => {
     switch (action.type) {
-        case 'RESTORE_TOKEN':
-            console.log("[RESTORE-TOKEN] Token is: "+action.token);
+        // Fired on app start (getSession) and on every Supabase auth event
+        // (sign in, sign out, token refresh) via onAuthStateChange.
+        case 'RESTORE_SESSION':
             return {
                 ...prevState,
-                userToken: action.token,
+                session: action.session,
+                userToken: action.session?.user?.id ?? null,
+                isSignout: action.session == null,
                 isLoading: false,
-            };
-        case 'SIGN_IN':
-            storeToken(action.token);
-            return {
-                ...prevState,
-                isSignout: false,
-                userToken: action.token,
-            };
-        case 'SIGN_OUT':
-            removeToken();
-            return {
-                ...prevState,
-                isSignout: true,
-                userToken: null,
             };
     }
 };
@@ -29,5 +16,6 @@ export const reducer = (prevState, action) => {
 export const initialState = {
     isLoading: true,
     isSignout: false,
+    session: null,
     userToken: null,
   };

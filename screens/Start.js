@@ -23,51 +23,23 @@ export default ({ navigation, route}) => {
         navigation.navigate('Sign in');
     }
 
-    const access_key = "TEST123";
-    const serverName = require('../appSettings/db.json');
+    const fetchDataApple = async (user, email, firstName, lastName, identityToken) => {
+        const { error } = await signInApple(identityToken);
+        if (error) return;
 
-    const fetchDataApple = (user, email, firstName, lastName) => {
-        console.log(user);
-            fetch(serverName.app.db + 'appleSignIn.php', { 
-                method: 'post',
-                header:{
-                    'Accept': 'application/json',
-                    'Content-type': 'application/json'
-                },
-                body:JSON.stringify({
-                  "access_token": access_key,
-                   "user": user,
-                   "email":email,
-                   "firstname": firstName,
-                   "lastname": lastName,
-                })
-            })
-            .then((response) => response.json())
-                .then((responseJson) =>{
-                  console.log(responseJson)
-                  if(responseJson == "Access denied"){
-                      alert("Access denied")
-                  }else if(responseJson == "signUp"){
-                    // signInApple({email: responseJson})
-                    navigation.navigate('Age', {
-                            user: user,
-                            email: email,
-                            firstName: firstName,
-                            lastName: lastName,
-                        });
-
-
-                  }
-                  else if(responseJson == "Failed"){
-                        alert("User no longer exists! Go to settings and stop using Apple sign up for this app. Then try again.");
-                  }else{
-                    signInApple({email: responseJson})
-                  }
-                })
-                .catch((error)=>{
-                    console.error(error);
-                });
-            }
+        // Apple only returns the full name on the very first authorization for
+        // this app, so its presence is our signal this is a brand-new account —
+        // route into the profile-completion flow. Returning users skip straight
+        // to the signed-in app once the session lands (handled in App.js).
+        if (firstName) {
+            navigation.navigate('Age', {
+                user: user,
+                email: email,
+                firstName: firstName,
+                lastName: lastName,
+            });
+        }
+    }
 
     function AppleSignIn() {
         return (
@@ -87,7 +59,7 @@ export default ({ navigation, route}) => {
                 // signed in
                 console.log(credential)
 
-                await fetchDataApple(credential.user, credential.email, credential.fullName.givenName, credential.fullName.familyName)
+                await fetchDataApple(credential.user, credential.email, credential.fullName?.givenName, credential.fullName?.familyName, credential.identityToken)
 
                   
               } catch (e) {

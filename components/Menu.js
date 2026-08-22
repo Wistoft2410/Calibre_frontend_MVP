@@ -1,10 +1,9 @@
 import React, { useEffect, useState }from 'react';
-import {ActivityIndicator, Linking, StyleSheet, View, Text, StatusBar, Button, TouchableOpacity, Image, TouchableWithoutFeedback, MaskedView, Switch} from 'react-native';
+import {ActivityIndicator, Animated, Linking, StyleSheet, View, Text, StatusBar, Button, TouchableOpacity, Image, TouchableWithoutFeedback, MaskedView, Switch} from 'react-native';
 import {AuthContext} from '../utils/authContext';
 import FontAwesomeIcon from 'react-native-vector-icons/FontAwesome'; // https://oblador.github.io/react-native-vector-icons/
 import * as Animatable from 'react-native-animatable';
 import Emoji from 'react-native-emoji'; // https://unicodey.com/emoji-data/table.htm
-import FontAwesome5Icon from 'react-native-vector-icons/FontAwesome5';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import MaterialCommunityIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +16,8 @@ import changeSVGColor from '@killerwink/lottie-react-native-color';
 import * as Location from 'expo-location';
 
 
+import { getOwnProfile } from '../utils/profileService';
+import { interestsForDisplay } from '../utils/passions';
 import { NeuView, NeuInput, NeuButton, NeuSwitch } from '../components/neu-element';
 import {menuIconLight,lightGreen, darkGreen , RADIUS,  Neumorphism, NeumorphismInput,Container, ActionContainer, HeroContainer, ProgressBar, DropDown, LogoContainer} from "../components/Style";
 
@@ -37,8 +38,32 @@ const neuHeight = windowHeight-windowWidth/1.5;
 // Version 1: This is the second version off the app with simpel meetUpMap
 const appVersion = 1;
 
+// Icon colour for the Discover People action buttons (white circles).
+const ACTION_ICON = "#1A1A1A";
+
+// Drop-down navigation, top to bottom. `key` doubles as the title it opens,
+// except "map" which pushes the meetUpMap screen instead of switching tabs.
+// Icon names match the Material Icons used in the Calibre 3.0 XD prototype.
+const NAV_ITEMS = [
+    { key: 'map',        icon: 'public' },
+    { key: 'people',     icon: 'supervised-user-circle' },
+    { key: 'mes',        icon: 'chat' },
+    { key: 'people-set', icon: 'dashboard' },
+    { key: 'set',        icon: 'build' },
+];
+
+// The header button mirrors whichever section is open. Expanded cards borrow
+// their parent section's icon.
+const navIconFor = (title) => {
+    const key = title === 'userCard' ? 'people' : title === 'userCard-set' ? 'people-set' : title;
+    const item = NAV_ITEMS.find(i => i.key === key);
+    return item ? item.icon : null;
+};
+
 export default ({ navigation, route }) => {
 
+    const feedRef = React.useRef(); // lets the footer buttons swipe the Discover deck
+    const [viewedProfile, setViewedProfile] = React.useState(null); // person shown in the expanded card
     const [interests, setInterests] = React.useState();
     const [userData, setUserData] = React.useState();
     const [ID, setID] = React.useState();
@@ -59,104 +84,28 @@ export default ({ navigation, route }) => {
 
    
 
-    // get server
-    const serverName = require('../appSettings/db.json');
-    // set acces_key
-    const access_key = "TEST123";
-    
-    // get information about user
-    const fetchData = (user) => {
-      fetch(serverName.app.db + 'getUserInfo.php', { 
-          method: 'post',
-          header:{
-              'Accept': 'application/json',
-              'Content-type': 'application/json'
-          },
-          body:JSON.stringify({
-            "access_token": access_key,
-             "user": user,
-             "type": "email",
+    // get information about the signed-in user from Supabase
+    const getData = async () => {
+      try {
+        const profile = await getOwnProfile();
+        if (!profile) return;
 
-          })
-      })
-      .then((response) => response.json())
-          .then((responseJson) =>{
-            console.log("Response from web:")
-                if(responseJson != userData){
-
-                        setID(responseJson.ID)
-                        setFirstName(responseJson.firstName)
-                        setLastName(responseJson.lastName)
-                        setAge(responseJson.age)
-                        setCity(responseJson.city)
-                        setEmail(responseJson.email)
-                        setGender(responseJson.gender)
-                        setPhone(responseJson.phone)
-                        setCountryID(responseJson.countryID)
-                        setProfileImage(responseJson.profileImage)
-                        setDescription(responseJson.description)
-                    getInt(responseJson.ID);
-                }else{
-                    console.log("t")
-                }
-          })
-          .catch((error)=>{
-              console.error(error);
-          });
+        setID(profile.id)
+        setFirstName(profile.firstName)
+        setLastName(profile.lastName)
+        setAge(profile.bday) // userCard's getAge() turns the birthdate into an age
+        setCity(profile.city)
+        setEmail(profile.email)
+        setGender(profile.gender)
+        setPhone(profile.phone)
+        setCountryID(profile.country)
+        setProfileImage(profile.profileImage)
+        setDescription(profile.description)
+        setInterests(interestsForDisplay(profile.interests))
+      } catch (error) {
+        console.error(error);
       }
-
-
-      // get userID from async storage
-      const retrieveData = async () => {
-        try {
-          const value = await AsyncStorage.getItem('@user_Token');
-        //   const val = await AsyncStorage.getItem('@user');
-          if (value !== null && userData !== null) {
-
-            // setUserData(val)
-
-            return value;
-           
-          }
-        } catch (error) {
-          // Error retrieving data
-        }
-      };
-  
-
-    // async function to make sure that the data is retrieved
-    const getData = async(oldData) => {
-      const user = await retrieveData()
-      await fetchData(user);
     }
-
-    const fetchInt = (user) => {
-    //   console.log("userID: "+ user)
-      fetch(serverName.app.db + 'getUserInterests.php', { 
-          method: 'post',
-          header:{
-              'Accept': 'application/json',
-              'Content-type': 'application/json'
-          },
-          body:JSON.stringify({
-            "access_token": access_key,
-             "user" : user,
-          })
-      })
-      .then((response) => response.json())
-          .then((responseJson) =>{
-                // console.log("Interests array:")
-                // console.log(responseJson);
-                setInterests(responseJson)
-          })
-          .catch((error)=>{
-              console.error(error);
-          });
-      }
-    const getInt = async(id) => {
-      await fetchInt(id);
-      
-     }
 
 
     
@@ -262,18 +211,15 @@ export default ({ navigation, route }) => {
       useEffect(() => {
         retrieveTheme();
         themeToggle();
-        getData();
+        getData(); // profile comes from Supabase now — no need to poll, edits refetch on return
         getLocation(); // get location on load
         GetCurrentLocation() // get city onload
-        const shortInterval = setInterval(() => {
-            getData(); // get data on interval if there is a change, then it will update the info
-          }, 2000);
         const interval = setInterval(() => {
             getLocation(); // get new location on interval
             GetCurrentLocation();
           }, 10000);
-        return () => {clearInterval(interval); clearInterval(shortInterval)} // This represents the unmount function, in which you need to clear your interval to prevent memory leaks.
-      
+        return () => {clearInterval(interval)} // This represents the unmount function, in which you need to clear your interval to prevent memory leaks.
+
 
     },[0])
 
@@ -287,13 +233,41 @@ export default ({ navigation, route }) => {
         setIsMenuOpen(true);
     }
 
+    // 0 = nav closed, 1 = nav open. Drives both the panel dropping in and the
+    // content sliding out of its way.
+    const menuAnim = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+        Animated.spring(menuAnim, {
+            toValue: isMenuOpen ? 1 : 0,
+            useNativeDriver: true,
+            friction: 9,
+            tension: 55,
+        }).start();
+    }, [isMenuOpen]);
+
+    const contentShift = menuAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -windowWidth * 0.24],
+    });
+    const contentFade = menuAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0.25],
+    });
+    const panelDrop = menuAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-windowHeight * 0.55, 0],
+    });
+
+    // Flips between Discover People and Your Profile (and the event equivalents).
+    // open() keeps isEnabled in sync, so menu navigation and this switch agree.
     const toggleSwitch  = () => {
-        title == "people" || title == "people-set" ? (
-            isEnabled ? (open("people")) : (open("people-set"))
-        ) : (
-            isEnabled ? (open("event")) : (open("event-set"))
-        )
-        setEnabled(!isEnabled);
+        const next = !isEnabled;
+        if (title == "people" || title == "people-set") {
+            open(next ? "people" : "people-set");
+        } else {
+            open(next ? "event" : "event-set");
+        }
     }
 
     // toggle the theme on switch
@@ -379,8 +353,19 @@ export default ({ navigation, route }) => {
       },
     };
 
+    // Expands the person currently on top of the Discover deck.
+    const openViewedCard = (profile) => {
+        const person = profile || (feedRef.current && feedRef.current.getCurrentProfile());
+        if (!person) return;
+        setViewedProfile(person);
+        open("userCard");
+    }
+
     const open = (value) => {
         setTitle(value)
+        // Keep the Discover/Profile switch showing where we actually are.
+        if (value == "people" || value == "event") setEnabled(true);
+        if (value == "people-set" || value == "event-set") setEnabled(false);
         closeMenu()
     }
 
@@ -392,60 +377,17 @@ export default ({ navigation, route }) => {
          
         <Animatable.View style={styles.container} animation={fadeIn} duration={500} delay={500}> 
 
-        {/* Menu */}
-          {isMenuOpen ? (
-            <View style={styles.openHeader}>
-                {appVersion >= 2 ? (
-                    <TouchableOpacity onPress={()=> {open("people")}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                                <MaterialIcon name="group" size={windowWidth/6/2} color={darkGreen} />
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity onPress={()=> {open("people-set")}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                        <MaterialIcon name="person" size={windowWidth/6/2} color={darkGreen} />
-                    </TouchableOpacity>
-                )}
-                {appVersion >= 2 ? (
-                    <TouchableOpacity onPress={()=> {open("event")}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                        <FontAwesome5Icon name="globe-europe" size={windowWidth/6-25} color={darkGreen} />
-                        {/* <LottieView 
-                        source={changeSVGColor(require('../assets/globe.json'), darkGreen)}
-                        autoPlay
-                        speed={.2}
-                        /> */}
-                    </TouchableOpacity> 
-                ) : appVersion >= 1 ? (
-                    <TouchableOpacity onPress={()=> {map()}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                        <MaterialIcon name="map" size={windowWidth/6/2} color={darkGreen} />
-                    </TouchableOpacity>
-                ) : (
-                    null
-                )}
-               
-                
-                <TouchableOpacity onPress={()=> {open("mes")}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                        <MaterialIcon name="message" size={windowWidth/6-25} color={darkGreen} />
-                        {/* <LottieView 
-                              source={changeSVGColor(require('../assets/consultation$.json'), darkGreen)}
-                              autoPlay
-                              speed={.2}
-                            /> */}
-                </TouchableOpacity>
-            
-                <TouchableOpacity onPress={()=> { open("set")}} style={[styles.menuBarPage, styles.menuBarPageShadow]}>
-                        <MaterialIcon name="build" size={windowWidth/6-25} color={darkGreen} />
-                        {/* <LottieView 
-                            source={changeSVGColor(require('../assets/tool.json'), darkGreen)}
-                            autoPlay
-                            speed={.2}
-                        /> */}
-                </TouchableOpacity>
+        {/* Everything except the drop-down nav. Slides left and dims while the nav is open. */}
+        <Animated.View
+            style={[styles.content, {opacity: contentFade, transform: [{translateX: contentShift}]}]}
+            pointerEvents={isMenuOpen ? 'none' : 'auto'}
+        >
 
-            </View>
-        ): title != "userCard" && title != "userCard-set" ? (
-<           View style={styles.header}>    
+          {title != "userCard" && title != "userCard-set" ? (
+            <View style={styles.header}>
                 {/* Display switch */}
                 <View style={styles.switch}>
-                    {(title == 'people' && appVersion >= 2) || title == 'event' || (title == 'people-set' && appVersion >= 2) || title == 'event-set' ? (
+                    {title == 'people' || title == 'event' || title == 'people-set' || title == 'event-set' ? (
                         <Switch
                             style={{ transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }] }}
                             ios_backgroundColor={BACKGROUND}
@@ -509,22 +451,10 @@ export default ({ navigation, route }) => {
                 <View style={styles.headerLogo}>
                 {(title != "people-set" || appVersion <= 1) && title != 'event-set'? ( 
                     <TouchableOpacity  onPress={() =>{openMenu(), Haptics.selectionAsync(); }} style={[styles.menuBarPage]}>
-                        {title == "people-set" && appVersion <= 1 ? (
-                            <MaterialIcon name="person" size={windowWidth/6-25} color={darkGreen} />
+                        {/* Shows the current section's icon, from the same list the nav panel uses */}
+                        {navIconFor(title) ? (
+                            <MaterialIcon name={navIconFor(title)} size={windowWidth/6-25} color={ACTION_ICON} />
                         ) : null}
-                        {title == "people" ? (
-                            <MaterialIcon name="group" size={windowWidth/6-25} color={darkGreen} />
-                        ) : null}
-                        {title == "event" ? (
-                            <FontAwesome5Icon name="globe-europe" size={windowWidth/6-25} color={darkGreen} />
-                        ) : null}
-                        {title == "mes" ? (
-                            <MaterialIcon name="message" size={windowWidth/6-25} color={darkGreen} />
-                        ) : null}
-                        {title == "set" ? (
-                            <MaterialIcon name="build" size={windowWidth/6-25} color={darkGreen} />
-                        ) : null}
-                        
                     </TouchableOpacity> ) : null}
                 </View>
 
@@ -550,11 +480,20 @@ export default ({ navigation, route }) => {
                     </NeuButton>
                 </View>
             ) :(
-                <Feed open={()=> open("userCard")} BACKGROUND={BACKGROUND} />   
+                <Feed ref={feedRef} open={(profile)=> openViewedCard(profile)} BACKGROUND={BACKGROUND} />
             )
         )
     ) : title == "userCard" ? (
-        <UserCard BACKGROUND={BACKGROUND}/>
+        <UserCard
+            BACKGROUND={BACKGROUND}
+            profileImage={viewedProfile && viewedProfile.profileImage}
+            interests={interestsForDisplay(viewedProfile && viewedProfile.interests)}
+            firstName={viewedProfile && viewedProfile.firstName}
+            lastName={viewedProfile && viewedProfile.lastName}
+            age={viewedProfile && viewedProfile.bday}
+            city={viewedProfile && viewedProfile.city}
+            currentCity={viewedProfile && viewedProfile.city}
+        />
     ) : title == "people-set" ? (
         <Profile open={()=> {open("userCard-set"); }} BACKGROUND={BACKGROUND}  profileImage={profileImage} interests={interests} firstName={firstName} lastName={lastName} age={age} city={city} email={email} gender={gender} phone={phone} currentCity={currentCity}/>
     ) : title == "userCard-set" ? (
@@ -601,21 +540,54 @@ export default ({ navigation, route }) => {
         </View>
     ): title == "people" ?(
         <View style={styles.nav}>
-            <View height={windowHeight/12} width={neuWidth-45} backgroundColor={"rgb(45,45,45)"} borderRadius={100} > 
-                <View style={styles.navContent}>
-                    <TouchableOpacity style={styles.navCircles} >
-                            <MaterialIcon name="block" size={40} color="red" /> 
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => open("userCard")} style={styles.navCircles}>
-                            <MaterialIcon name="vibration" size={40} color="rgb(55,133,223)" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navCircles} >
-                            <MaterialCommunityIcon name="hand-right" size={40} color={lightGreen} />
-                    </TouchableOpacity>
-                </View>
-            </View>
+            <TouchableOpacity
+                onPress={() => {Haptics.selectionAsync(); feedRef.current && feedRef.current.swipeLeft()}}
+                style={[styles.actionButton, styles.actionPass, styles.actionShadow]}
+            >
+                <MaterialIcon name="close" size={windowWidth*0.19*0.46} color={ACTION_ICON} />
+            </TouchableOpacity>
+            <TouchableOpacity
+                onPress={() => openViewedCard()}
+                style={[styles.actionButton, styles.actionInfo, styles.actionShadow]}
+            >
+                <MaterialCommunityIcon name="information-variant" size={windowWidth*0.18*0.5} color={ACTION_ICON} />
+            </TouchableOpacity>
+            <TouchableOpacity
+                onPress={() => {Haptics.selectionAsync(); feedRef.current && feedRef.current.swipeRight()}}
+                style={[styles.actionButton, styles.actionLike, styles.actionShadow]}
+            >
+                <MaterialIcon name="check" size={windowWidth*0.21*0.46} color={ACTION_ICON} />
+            </TouchableOpacity>
         </View>
     ) : null}
+            </Animated.View>
+
+            {/* Tap anywhere outside the panel to dismiss it */}
+            {isMenuOpen ? (
+                <TouchableWithoutFeedback onPress={closeMenu}>
+                    <View style={styles.scrim} />
+                </TouchableWithoutFeedback>
+            ) : null}
+
+            {/* Drop-down navigation: a soft-cornered column that falls in from the top right */}
+            <Animated.View
+                style={[styles.navPanel, {opacity: menuAnim, transform: [{translateY: panelDrop}]}]}
+                pointerEvents={isMenuOpen ? 'auto' : 'none'}
+            >
+                {NAV_ITEMS.map(item => (
+                    <TouchableOpacity
+                        key={item.key}
+                        style={styles.navPanelItem}
+                        onPress={() => {Haptics.selectionAsync(); item.key === 'map' ? map() : open(item.key)}}
+                    >
+                        <MaterialIcon
+                            name={item.icon}
+                            size={windowWidth*0.075}
+                            color={ACTION_ICON}
+                        />
+                    </TouchableOpacity>
+                ))}
+            </Animated.View>
             </Animatable.View>
       </Container>
     );
@@ -625,6 +597,39 @@ const styles = StyleSheet.create({
     container: {
         height: '100%',
         width: '100%',
+      },
+    content: {
+        height: '100%',
+        width: '100%',
+      },
+    scrim: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+      },
+    // Soft-cornered column that drops in from the top right.
+    navPanel: {
+        position: 'absolute',
+        top: '6%',
+        right: 14,
+        width: windowWidth * 0.19,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 26,
+        alignItems: 'center',
+        paddingVertical: 14,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 6,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+      },
+    navPanelItem: {
+        width: windowWidth * 0.19,
+        height: windowWidth * 0.155,
+        alignItems: 'center',
+        justifyContent: 'center',
       },
     header: {
         width: '100%', height: '10%',
@@ -663,8 +668,8 @@ const styles = StyleSheet.create({
         color: 'lightgray',
         fontWeight: '700',
     },
+    // No right offset: the button sits near the screen edge, as in the prototype.
     headerLogo:{
-        right: '12%',
         width: '25%',
         alignItems: 'center',
     },
@@ -674,52 +679,54 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
 
     },
-    openHeader:{
-        width: '100%', height: '10%',
-        alignItems: 'center',
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
+    // Soft-cornered square, matching the nav panel's corner treatment.
     menuBarPage: {
         width: windowWidth/6,
         height: windowWidth/6,
-        borderRadius: 100,
+        borderRadius: windowWidth/6 * 0.26,
         backgroundColor: '#fff',
         justifyContent: 'center',
         alignItems: 'center',
         top:-5,
-
-        
-    },
-    menuBarPageShadow: {
         shadowColor: "#000",
         shadowOffset: {
-            width: 5,
-            height: 5,
+            width: 0,
+            height: 4,
         },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
         elevation: 5,
     },
+    // Discover People actions: three floating circles, no container bar.
     nav:{
         width: '100%',
-        height: 70,
         position: 'absolute',
-        bottom: 35,
+        bottom: 40,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
       },
-      navContent: {
-        width: '100%',
-        height: '100%',
-        position: 'absolute',
+      actionButton: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 100,
         alignItems: 'center',
-        flexDirection: 'row',
         justifyContent: 'center',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingLeft: 5, paddingRight: 5,
+        marginHorizontal: 11,
       },
+      actionShadow: {
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+      // The like button is the primary action, so it reads slightly larger.
+      actionPass: { width: windowWidth*0.19, height: windowWidth*0.19 },
+      actionInfo: { width: windowWidth*0.18, height: windowWidth*0.18 },
+      actionLike: { width: windowWidth*0.21, height: windowWidth*0.21 },
       navCircles: {
         backgroundColor: "rgb(25,25,25)",
         shadowColor: "#000",

@@ -7,11 +7,22 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ScrollView
+  ScrollView,
+  Platform
 } from 'react-native';
+import Constants from 'expo-constants';
 import { NeuView, NeuInput, NeuButton } from '../neu-element';
 import { Dimensions } from 'react-native';
 import { BACKGROUND, RADIUS, COLOR, PLACEHOLDER} from '../Style';
+
+// The API key is restricted to this iOS bundle ID in Google Cloud Console,
+// so requests must carry this header or Google returns REQUEST_DENIED.
+const googleRestrictionHeaders = Platform.select({
+  ios: {
+    'X-Ios-Bundle-Identifier': Constants.expoConfig?.ios?.bundleIdentifier,
+  },
+  default: {},
+});
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
@@ -168,20 +179,28 @@ class PlacesInput extends Component {
         isLoading: true,
       },
       async () => {
-        const places = await fetch(
-          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${
-            this.state.query
-          }&key=${this.props.googleApiKey}&inputtype=textquery&language=${
-            this.props.language
-          }&fields=${
-            this.props.queryFields
-          }${this.buildLocationQuery()}${this.buildCountryQuery()}${this.buildTypesQuery()}${this.buildSessionQuery()}`
-        ).then(response => response.json());
+        try {
+          const places = await fetch(
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+              this.state.query
+            )}&key=${this.props.googleApiKey}&language=${encodeURIComponent(
+              this.props.language
+            )}${this.buildLocationQuery()}${this.buildCountryQuery()}${this.buildTypesQuery()}${this.buildSessionQuery()}`,
+            { headers: googleRestrictionHeaders }
+          ).then(response => response.json());
 
-        this.setState({
-          isLoading: false,
-          places: places.predictions,
-        });
+          if (places.status !== 'OK' && places.status !== 'ZERO_RESULTS') {
+            console.warn('Places autocomplete failed:', places.status, places.error_message);
+          }
+
+          this.setState({
+            isLoading: false,
+            places: places.predictions || [],
+          });
+        } catch (e) {
+          console.warn('Places autocomplete request failed:', e.message);
+          this.setState({isLoading: false, places: []});
+        }
       }
     );
   };
@@ -194,17 +213,20 @@ class PlacesInput extends Component {
     }, async () => {
       try {
         const place = await fetch(
-          `https://maps.googleapis.com/maps/api/place/details/json?placeid=${id}&key=${this.props.googleApiKey}&fields=${this.props.queryFields}&language=${this.props.language}${this.buildSessionQuery()}`
+          `https://maps.googleapis.com/maps/api/place/details/json?placeid=${encodeURIComponent(id)}&key=${this.props.googleApiKey}&fields=${encodeURIComponent(this.props.queryFields)}&language=${encodeURIComponent(this.props.language)}${this.buildSessionQuery()}`,
+          { headers: googleRestrictionHeaders }
         ).then(response => response.json());
+
+        if (place.status !== 'OK' || !place.result) {
+          console.warn('Place details failed:', place.status, place.error_message);
+          throw new Error(place.error_message || place.status || 'Place details request failed');
+        }
 
         return this.setState(
           {
             showList: false,
             isLoading: false,
-            query: clearQueryOnSelect ? '' :
-              place &&
-              place.result &&
-              (place.result.formatted_address || place.result.name),
+            query: clearQueryOnSelect ? '' : (place.result.formatted_address || place.result.name),
           },
           () => {
             return this.props.onSelect && this.props.onSelect(place);
@@ -218,7 +240,7 @@ class PlacesInput extends Component {
             query: passedPlace.description,
           },
           () => {
-            return this.props.onSelect && this.props.onSelect(passedPlace);
+            return this.props.onSelect && this.props.onSelect(null, e);
           }
         );
       }

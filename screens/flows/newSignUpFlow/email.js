@@ -18,8 +18,6 @@ export default ({ navigation, route }) => {
     const [buttonState, setButtonState] = React.useState(true);
     const [emailTestText, setEmailTestText] = React.useState(true); // Hide validEmailText
     
-    const serverName = require('../../../appSettings/db.json');
-
     const nextPage = () => {
       console.log("\nBday: "+route.params.bday)
       console.log("Email: "+email)
@@ -29,40 +27,17 @@ export default ({ navigation, route }) => {
         email: email
       });
     }
-    const checkEmail = async () => {
-      
-      fetch(serverName.app.db + 'register.php', { // Sends data to server to check if email is used
-          method: 'post',
-          header:{
-              'Accept': 'application/json',
-              'Content-type': 'application/json'
-          },
-          body:JSON.stringify({
-              "checkEmail": "true", // send chechEmail: true, to tell register.php to check for email and not to create new user
-              "email": email
-          })
-      })
-      .then((response) => response.json())
-          .then((responseJson) =>{
-              if(responseJson == "MNU"){ // MNU: Mail not used
-                nextPage();
-              }else{
-                  alert(responseJson);
-              }
-          })
-          .catch((error)=>{
-              console.error(error);
-          });
-      
-  }
   // check if email is vaild
   function validateEmail($email) {
     var emailReg = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
     return emailReg.test( $email );
   }
     const handlePress = () => {
-      validateEmail(email) ? checkEmail() : alert('Please enter valid mail')
-        
+      // Availability is checked at the final signUp() step instead — Supabase's
+      // client API doesn't expose a safe "does this email exist" lookup (it's
+      // deliberately withheld to prevent user enumeration).
+      validateEmail(email) ? nextPage() : alert('Please enter valid mail')
+
     }
 
     const fadeIn = {

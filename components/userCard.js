@@ -82,7 +82,7 @@ const UserCard = props => {
                     {profileImage ? (
                         <Image
                           style={styles.profilePhoto}
-                          source={{uri : serverName.app.db+"images/"+ profileImage}}
+                          source={{uri : String(profileImage).startsWith('http') ? profileImage : serverName.app.db+"images/"+ profileImage}}
                         />
                       ):(
                         <Image

@@ -5,7 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import {reducer, initialState} from './utils/reducer';
 import {AuthContext} from './utils/authContext';
 import { StyleSheet, View, Text, StatusBar, Button} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './utils/supabase';
 
 import Feed from './screens/Feed';
 import Profile from './screens/Profile';
@@ -21,91 +21,71 @@ import { FeedStackScreen, AuthStackScreen, SignUpStackScreen } from './config/na
 export default function App() {
     const [state, dispatch] = React.useReducer(reducer, initialState);
 
-    const serverName = require('./appSettings/db.json');
-
     const authContext = React.useMemo(
         () => ({
             signIn: async data => {
-                // In a production app, we need to send some data (usually username, password) to server and get a token
-                // We will also need to handle errors if sign in failed
-                // After getting token, we need to persist the token using `AsyncStorage`
-                console.log(serverName.app.db)
-                fetch(serverName.app.db + 'signin.php', { // Send data to server for log in
-                    method: 'post',
-                    header:{
-                        'Accept': 'application/json',
-                        'Content-type': 'application/json'
-                    },
-                    body:JSON.stringify({
-                        "username": data.username,
-                        "password": data.password
-                    })
-                })
-                .then((response) => response.json())
-                    .then((responseJson) =>{
-                        if(responseJson == "SIS"){ // SIS: Sign in success
-                            dispatch({
-                                type: 'SIGN_IN',
-                                token: data.username
-                            });
-                        }else{
-                            alert(responseJson); // Alert error message
-                        }
-                    })
-                    .catch((error)=>{
-                        console.error(error);
-                    });
-                
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: data.username,
+                    password: data.password,
+                });
+                if (error) {
+                    alert(error.message);
+                }
+                // On success, the onAuthStateChange listener below dispatches
+                // RESTORE_SESSION and the app navigates itself.
             },
-            signInApple: async data => {
-                dispatch({ 
-                    type: 'SIGN_IN',
-                    token: data.email
-                })
+            signInApple: async identityToken => {
+                const { error } = await supabase.auth.signInWithIdToken({
+                    provider: 'apple',
+                    token: identityToken,
+                });
+                if (error) {
+                    alert(error.message);
+                }
+                return { error };
             },
-            signOut: () => dispatch({
-                type: 'SIGN_OUT'
-            }),
+            signOut: async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    alert(error.message);
+                }
+            },
             signUP: async data => {
-                // In a production app, we need to send user data to server and get a token
-                // We will also need to handle errors if sign up failed
-                // After getting token, we need to persist the token using `AsyncStorage`
-                console.log(data);
-
-                fetch(serverName.app.db + 'register.php', { // Sends data to server for sign up
-                    method: 'post',
-                    header:{
-                        'Accept': 'application/json',
-                        'Content-type': 'application/json'
+                const { data: signUpData, error } = await supabase.auth.signUp({
+                    email: data.email,
+                    password: data.password,
+                    options: {
+                        // No `profiles` table exists yet (tracked separately in the
+                        // migration checklist) — stash the collected fields as user
+                        // metadata for now so they aren't lost.
+                        data: {
+                            bday: data.bday,
+                            firstname: data.firstname,
+                            lastname: data.lastname,
+                            language: data.language,
+                            country: data.country,
+                            city: data.city,
+                            cityLat: data.cityLat,
+                            cityLng: data.cityLng,
+                            interests: data.interests,
+                        },
                     },
-                    body:JSON.stringify({
-                        "bday": data.bday,
-                        "email": data.email,
-                        "firstname": data.firstname,
-                        "lastname": data.lastname,
-                        "language": data.language,
-                        "country": data.country,
-                        "city": data.city,
-                        "cityLat": data.cityLat,
-                        "cityLng": data.cityLng,
-                        "interests": data.interests,
-                        "password": data.password,
-                    })
-                })
-                .then((response) => response.json())
-                    .then((responseJson) =>{
-                        if(responseJson == "URS"){ // URS: User Registered Successfully
-                            dispatch({
-                                type: 'SIGN_IN',
-                                token: data.email
-                            });
-                        }else{
-                            alert(responseJson); // Alert error message
-                        }
-                    })
-                    .catch((error)=>{
-                        console.error(error);
-                    });
+                });
+                if (error) {
+                    alert(error.message);
+                    return;
+                }
+                // Supabase returns a "success" response with no identities when the
+                // email is already registered, instead of an error (enumeration protection).
+                if (signUpData.user && signUpData.user.identities?.length === 0) {
+                    alert('An account with this email already exists.');
+                    return;
+                }
+                if (!signUpData.session) {
+                    alert('Check your email to confirm your account before signing in.');
+                }
+                // If a session came back immediately (email confirmation disabled),
+                // onAuthStateChange below picks it up and signs the user in.
             },
         }),
         []
@@ -113,23 +93,15 @@ export default function App() {
 
 
     React.useEffect(() => {
-        // Fetch the token from storage then navigate to our appropriate place
-        const bootstrapAsync = async () => {
-          let userToken;
-          console.log("Restoring user token...");
-          try {
-            userToken = await AsyncStorage.getItem('@user_Token');
-          } catch (e) {
-            console.log("Token restore error!");
-          }
-          // restore token success
-          if (userToken != "") {
-            setTimeout(() => {
-                dispatch({ type: 'RESTORE_TOKEN', token: userToken });
-            }, 2500);
-          }
-        };
-        bootstrapAsync();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            dispatch({ type: 'RESTORE_SESSION', session });
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            dispatch({ type: 'RESTORE_SESSION', session });
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     /*return ( 

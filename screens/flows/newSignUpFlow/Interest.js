@@ -1,368 +1,327 @@
-// tilføj top tre picks til display. De første tre der vælges vil komme op på skærmen som top picks. Senere vil man kunne ændre dem under ens profil
-// Der kan tilføjes så mange intereser som man ønsker, men man kan kun vælge op til syv som bliver vist når andre ser ens profil. Alle intereser vil stadig tælle med i matching algortimen
-import React, { useRef, useState, useEffect } from "react";
-import { Animated, View, StyleSheet, PanResponder, Text, Keyboard, TouchableWithoutFeedback, ScrollView, Vibration} from "react-native";
+// Passion picker — Apple Watch style honeycomb. Pan in any direction, pinch to
+// zoom out to a bird's-eye view, tap to select. Pick at least 3, max 7.
+// The first three picks become the user's "top picks" (changeable later under profile).
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import * as Animatable from 'react-native-animatable';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import { set } from "react-native-reanimated";
-import Emoji from 'react-native-emoji'; // https://unicodey.com/emoji-data/table.htm
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as Haptics from 'expo-haptics';
 
-import { signUp } from "./style";
-import { NeuView, NeuInput, NeuButton } from '../../../components/neu-element';
-import {BACKGROUND, RADIUS, COLOR, PLACEHOLDER, Neumorphism, NeumorphismInput,Container, ActionContainer, HeroContainer, ProgressBar, DropDown} from "../../../components/Style";
+import HoneycombGrid from '../../../components/honeycomb/HoneycombGrid';
+import { PASSIONS } from '../../../utils/passions';
+import { NeuButton } from '../../../components/neu-element';
+import { BACKGROUND, RADIUS, COLOR, PLACEHOLDER, Neumorphism, Container, ActionContainer, HeroContainer, ProgressBar, lightGreen } from "../../../components/Style";
 
 import { Dimensions } from 'react-native';
 
 const windowWidth = Dimensions.get('window').width;
-const windowHeight = Dimensions.get('window').height;
+
+const MIN_PICKS = 3;
+const MAX_PICKS = 7;
+const ITEM_SIZE = 100;
+const ITEM_SPACING = 114;
+
+// PASSIONS lives in utils/passions.js (shared with the profile cards, and the
+// same names are stored on Supabase profiles). Order matters here: first item
+// anchors the center of the honeycomb, the rest radiate outward ring by ring.
 
 export default ({ navigation, route }) => {
-  
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [showSelected, setShowSelected] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [query, setQuery] = useState('');
 
-  const pan = useRef(new Animated.ValueXY()).current;
+    // Progress bar fills from 63% (step baseline) toward 79% as picks come in,
+    // matching the 63→79 hand-off the surrounding sign-up steps animate.
+    const progressAnim = useRef(new Animated.Value(63)).current;
+    useEffect(() => {
+        Animated.timing(progressAnim, {
+            toValue: 63 + (Math.min(selectedIds.length, MAX_PICKS) / MAX_PICKS) * 16,
+            duration: 250,
+            useNativeDriver: false,
+        }).start();
+    }, [selectedIds.length]);
+    const progressWidth = progressAnim.interpolate({
+        inputRange: [0, 100],
+        outputRange: ['0%', '100%'],
+    });
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        pan.setOffset({
-          x: pan.x._value,
-          y: pan.y._value
-        });
-      },
-      onPanResponderMove: Animated.event(
-        [
-          null,
-          { dx: pan.x, dy: pan.y }
-        ],
-        {useNativeDriver: false}
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-      }
-    })
-  ).current;
+    const dimmedIds = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!searchOpen || !q) return null;
+        return new Set(
+            PASSIONS.filter(p => p.interest.toLowerCase().includes(q)).map(p => p.ID)
+        );
+    }, [searchOpen, query]);
 
+    const selectedItems = useMemo(
+        () => PASSIONS.filter(p => selectedIds.includes(p.ID)),
+        [selectedIds]
+    );
 
-const access_key = "TEST123";
-const serverName = require('../../../appSettings/db.json');
-
-const nextPage = (chosenInterests) => {
-  console.log("\nBday: "+route.params.bday)
-  console.log("Email: "+route.params.email)
-  console.log("Name: "+ route.params.firstname + " " + route.params.lastname)
-  console.log("Language: "+ route.params.countryLanguage)
-  console.log("Country: "+ route.params.country)
-  console.log("City: "+ route.params.city)
-  console.log("City lat: "+ route.params.cityLat)
-  console.log("City lng: "+ route.params.cityLng)
-  console.log("interests:" +chosenInterests)
-
-  navigation.navigate('Password', {
-    bday: route.params.bday,
-    email: route.params.email,
-    firstname: route.params.firstname,
-    lastname: route.params.lastname,
-    language: route.params.countryLanguage,
-    country: route.params.country,
-    city: route.params.city,
-    cityLat: route.params.cityLat,
-    cityLng: route.params.cityLng,
-    interests: chosenInterests
-  });
-}
-
-
-const handlePress = (items) => {
-  if(items.length < 3){
-    alert("Please select a minimum of 3 interests, you have only selected "+ items.length +" interests")
-  }else{
-    nextPage(items);
-  }
-}
-
-const [selectedId, setSelectedId] = useState([]);
-
-const [DATA, setDATA] = useState([]);
-const [showSelected, setShowSelected] = useState(false);
-
- 
-
-
-
-
-const fetchData = () => {
-    fetch(serverName.app.db + 'things.php', { 
-        method: 'post',
-        header:{
-            'Accept': 'application/json',
-            'Content-type': 'application/json'
-        },
-        body:JSON.stringify({
-          "access_token": access_key,
-        })
-    })
-    .then((response) => response.json())
-        .then((responseJson) =>{
-          setDATA(responseJson); 
-          console.log(responseJson);
-        })
-        .catch((error)=>{
-            console.error(error);
-        });
-    }
- 
-    useEffect(() => {fetchData()},[])
-    
-  const selectItem = (id) => {
-    let valid = checkItem(id);
-    if(valid == false){
-      if(selectedId.length < 7){
-          setSelectedId([
-              ...selectedId,
-              id
-          ])
-      }else{
-          alert("You have already selected seven interests")
-      }
-    }
-  }
-  
-  const checkItem =  (id) => {
-    let valid = false;
-    selectedId.map(sID => {
-        if(sID === id){
-            valid = true;
+    const toggleItem = (item) => {
+        if (selectedIds.includes(item.ID)) {
+            Haptics.selectionAsync();
+            setSelectedIds(selectedIds.filter(id => id !== item.ID));
+        } else if (selectedIds.length >= MAX_PICKS) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            alert("You have already selected seven passions");
+        } else {
+            Haptics.selectionAsync();
+            setSelectedIds([...selectedIds, item.ID]);
         }
-    })
-    return valid
-  };
+    };
 
-  const deSelectItem = (id) => {
-    let selected = []
-    selectedId.map(sID => {
-        selected.push(sID)
-    })
-    let index = selected.indexOf(id)
-    selected.splice(index, 1)
-    setSelectedId(selected)
- }
+    const nextPage = () => {
+        const chosenInterests = selectedItems.map(item => item.interest);
 
- 
-  const Interests = () => { 
+        console.log("\nBday: " + route.params.bday)
+        console.log("Email: " + route.params.email)
+        console.log("Name: " + route.params.firstname + " " + route.params.lastname)
+        console.log("Language: " + route.params.language)
+        console.log("Country: " + route.params.country)
+        console.log("City: " + route.params.city)
+        console.log("City lat: " + route.params.cityLat)
+        console.log("City lng: " + route.params.cityLng)
+        console.log("Interests: " + chosenInterests)
 
-      return(
-            <View style={styles.row}>
-              {DATA.map(item => {
-                    return <Interest id={item.ID} name={item.interest} key={item.ID} color={item.color} backgroundColor={item.bgColor} emoji={item.interestsEmoji}></Interest>
-                keyNum++;
-              })}
+        navigation.navigate('Password', {
+            bday: route.params.bday,
+            email: route.params.email,
+            firstname: route.params.firstname,
+            lastname: route.params.lastname,
+            language: route.params.language,
+            country: route.params.country,
+            city: route.params.city,
+            cityLat: route.params.cityLat,
+            cityLng: route.params.cityLng,
+            interests: chosenInterests,
+        });
+    };
+
+    const handlePress = () => {
+        if (selectedIds.length < MIN_PICKS) {
+            alert("Please select a minimum of 3 passions, you have only selected " + selectedIds.length);
+        } else {
+            nextPage();
+        }
+    };
+
+    const fadeIn = {
+        from: { opacity: 0 },
+        to: { opacity: 1 },
+    };
+
+    const nextDisabled = selectedIds.length < MIN_PICKS;
+
+    return (
+        <Container>
+            <View style={ProgressBar.progressBar}>
+                <Animated.View style={[ProgressBar.progress, { width: progressWidth }]} />
             </View>
-        );   
-  }
 
-  const InterestsSelected = () => {  
-  return(
-    <View style={styles.row}>
-      {DATA.map(item => {
-            return <InterestSelected id={item.ID} name={item.interest} key={item.ID} color={item.color} backgroundColor={item.bgColor} emoji={item.interestsEmoji}/>
-      })}
-    </View>
-  );   
-}
+            <Animatable.View animation={fadeIn} duration={2000} style={HeroContainer.container}>
+                <Text style={HeroContainer.text}>What is your <Text style={HeroContainer.greenText}>passion</Text>?</Text>
+            </Animatable.View>
 
-  
-  const Interest = (props) => {
+            <View style={styles.canvasWrapper}>
+                <HoneycombGrid
+                    items={PASSIONS}
+                    itemSize={ITEM_SIZE}
+                    spacing={ITEM_SPACING}
+                    selectedIds={selectedIds}
+                    dimmedIds={dimmedIds}
+                    onPressItem={toggleItem}
+                />
 
-    const ref = React.useRef();
+                {searchOpen && (
+                    <View style={styles.searchBar}>
+                        <Icon name="search" size={16} color={PLACEHOLDER} style={styles.searchIcon} />
+                        <TextInput
+                            style={styles.searchInput}
+                            value={query}
+                            onChangeText={setQuery}
+                            placeholder="Find a passion"
+                            placeholderTextColor={PLACEHOLDER}
+                            autoFocus={true}
+                            autoCorrect={false}
+                            autoCapitalize='none'
+                        />
+                    </View>
+                )}
 
-    const [bgColor, setbgColor] = React.useState(false);
-    
-    return(
-        <View>
-          <TouchableOpacity activeOpacity={1} onPress={() => {Haptics.selectionAsync();  checkItem(props.id) ? deSelectItem(props.id) : selectItem(props.id)}}  >
-            <View style={[styles.interestItem, {backgroundColor: props.backgroundColor}, (checkItem(props.id) ? {paddingVertical:12} : {shadowOpacity: 0})]}  ref={ref} >         
-              <Text style={[styles.interestText, {color: props.color}, (checkItem(props.id) ? {fontSize: 16} : "")]}>
-                {props.name} 
-                <Emoji name={props.emoji} style={{fontSize: 12}} />  
-              </Text>             
+                {showSelected && (
+                    <View style={styles.selectedPanel}>
+                        <Text style={styles.selectedTitle}>
+                            {selectedItems.length ? "Your picks — tap to remove" : "Nothing picked yet"}
+                        </Text>
+                        <ScrollView>
+                            <View style={styles.chipRow}>
+                                {selectedItems.map(item => (
+                                    <TouchableOpacity
+                                        key={item.ID}
+                                        onPress={() => toggleItem(item)}
+                                        style={[styles.chip, { backgroundColor: item.bgColor }]}
+                                    >
+                                        <Text style={[styles.chipText, { color: item.color }]}>
+                                            {item.interest} {item.interestsEmoji}  ✕
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+                    </View>
+                )}
             </View>
-          </TouchableOpacity>
-        </View>
-      
-      );
-  }
-  
-  const InterestSelected = (props) => {
 
-    const ref = React.useRef();
+            <Text style={styles.caption}>
+                PICK AT <Text style={{ color: lightGreen }}>LEAST {MIN_PICKS}</Text> AND MAX {MAX_PICKS}
+            </Text>
 
-    const [bgColor, setbgColor] = React.useState(false);
-    
-    return(
-        <View style={(checkItem(props.id) ? "" : {display: 'none'})}>
-          <TouchableOpacity onPress={() => {deSelectItem(props.id)}}  >
-            <View style={[styles.interestItem, {backgroundColor: props.backgroundColor}]}  ref={ref} >         
-              <Text style={[styles.interestText, {color: props.color}]}>
-                {props.name} 
-                <Emoji name={props.emoji} style={{fontSize: 12}} /> 
-              </Text>             
-            </View>
-          </TouchableOpacity>
-        </View>
-      
-      );
-  }
-  const fadeIn = {
-    from: {
-      opacity: 0,
-    },
-    to: {
-      opacity: 1,
-    },
-  };
-  const progress = {
-    from: {
-      width: '63%',
-    },
-    to:{
-      width: '79%',
-    }
-  };
-  return (
-    <Container >
-        <View style={ProgressBar.progressBar}>
-          <Animatable.View animation={progress} style={ProgressBar.progress}></Animatable.View>
-        </View>
-
-        <Animatable.View animation={fadeIn} duration={2000} style={HeroContainer.container}>              
-          <Text style={HeroContainer.text}>What is your <Text style={HeroContainer.greenText}>interest</Text>?</Text>
-        </Animatable.View>
-
-        <View style={[NeumorphismInput.container, {height: '55%'}]}>
-          
-          <View style={styles.titleView}>
-            <Text style={styles.title}> {showSelected ? "Selected items, click to deselect" : "Select between 3 and 7 interests"} </Text>
-          </View>
-
-          {/* <Animated.View
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{
-                transform: [{ translateX: pan.x }, { translateY: pan.y }]
-              }}
-              {...panResponder.panHandlers}
-            >
-              
-              <View style={styles.box}>   */}
-
-              <ScrollView style={styles.scroll}>
-                <View style={[(showSelected ? {display: 'none'} : "")]}>
-                  <Interests/>
+            <View style={ActionContainer.actionContainerSignUp}>
+                <View style={ActionContainer.actionContainerSignUpAvoiding}>
+                    <NeuButton
+                        disabled={nextDisabled}
+                        style={nextDisabled ? styles.lowOpacity : null}
+                        onPress={handlePress} width={140} height={50} color={BACKGROUND} borderRadius={RADIUS}
+                    >
+                        <Text style={Neumorphism.buttonText}>
+                            NEXT
+                        </Text>
+                    </NeuButton>
                 </View>
-                <View style={[(showSelected ? "" : {display: 'none'})]}>
-                  <InterestsSelected/>
-                </View>    
-              </ScrollView>
-              {/* </View>
-              
-          </Animated.View> */}
-        </View>
+            </View>
 
-        <View style={ActionContainer.actionContainerSignUp}>
-          <View style={ActionContainer.actionContainerSignUpAvoiding}>
-            <NeuButton
-              onPress={() => handlePress(selectedId)} width={140} height={50} color={'#EDECEC'} borderRadius={10}
-            >
-              <Text style={Neumorphism.neumorphismButtonText}>
-                NEXT
-              </Text>
-            </NeuButton>  
-          </View>
-        </View>
-        <View style={{position: 'absolute', left: 20, bottom: '10%'}}>
-        <View style={ActionContainer.actionContainerSignUpAvoiding}>
-          <NeuButton onPress={() => showSelected ? setShowSelected(false) : setShowSelected(true)} width={50} height={50} color={BACKGROUND} borderRadius={RADIUS} >
-              <Icon name="bookmark" size={20} color={COLOR}/>
-              <View style={styles.count}>
-                  <Text style={styles.countText}>{selectedId.length}</Text>
-              </View>
-          </NeuButton>
-        </View> 
-        </View>
-        <View  style={{position: 'absolute', right: 20, bottom: '10%'}}>
-          <View style={ActionContainer.actionContainerSignUpAvoiding}>
-            {/* <NeuButton width={50} height={50} color={BACKGROUND} borderRadius={RADIUS} >
-                <Icon name="search" size={20} color={COLOR} />
-            </NeuButton> */}
-          </View>  
-        </View>
-    </Container>
-  );
+            <View style={{ position: 'absolute', left: 20, bottom: '10%' }}>
+                <View style={ActionContainer.actionContainerSignUpAvoiding}>
+                    <NeuButton
+                        onPress={() => { setShowSelected(!showSelected); setSearchOpen(false); }}
+                        width={50} height={50} color={BACKGROUND} borderRadius={RADIUS}
+                    >
+                        <Icon name="bookmark" size={20} color={COLOR} />
+                        <View style={styles.count}>
+                            <Text style={styles.countText}>{selectedIds.length}</Text>
+                        </View>
+                    </NeuButton>
+                </View>
+            </View>
+
+            <View style={{ position: 'absolute', right: 20, bottom: '10%' }}>
+                <View style={ActionContainer.actionContainerSignUpAvoiding}>
+                    <NeuButton
+                        onPress={() => { setSearchOpen(!searchOpen); setShowSelected(false); if (searchOpen) setQuery(''); }}
+                        width={50} height={50} color={BACKGROUND} borderRadius={RADIUS}
+                    >
+                        <Icon name="search" size={20} color={COLOR} />
+                    </NeuButton>
+                </View>
+            </View>
+        </Container>
+    );
 }
 
 const styles = StyleSheet.create({
-  titleView: {
-    // position: 'absolute',
-    // top: 0
-  },
-  title: {
-    fontSize: 16,
-    letterSpacing: 1,
-    color: COLOR,
-},
-  scroll: {
-    marginTop: 20,
-
-  },
-
-  interestItem: {
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    marginLeft: 10,
-    marginTop: 15,
-    backgroundColor: 'red',
-    shadowOffset: {
-      width: 0,
-      height: 5,
+    canvasWrapper: {
+        position: 'absolute',
+        top: '20%',
+        bottom: '22%',
+        left: 0,
+        right: 0,
+        overflow: 'hidden',
     },
-    shadowOpacity: 0.55,
-    shadowRadius: 5,
-
-    elevation: 1,
-    
-  },
-  interestText:{
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    shadowColor: "#000",
-
-  },
-  row:{
-    flexDirection: 'row',
-    flexWrap:'wrap',
-    alignItems: 'flex-start',
-    width: windowWidth,
-  },
-  count: {
-    width: 20,
-    height: 20,
-    backgroundColor: "#73EC70",
-    borderRadius: 100,
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    justifyContent: 'center',
-    alignItems: 'center',
-},
-countText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-},
+    caption: {
+        position: 'absolute',
+        left: 30,
+        bottom: '17.5%',
+        fontSize: 14,
+        letterSpacing: 1,
+        color: COLOR,
+    },
+    searchBar: {
+        position: 'absolute',
+        top: 10,
+        left: 30,
+        right: 30,
+        height: 44,
+        borderRadius: RADIUS,
+        backgroundColor: BACKGROUND,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        shadowColor: '#000',
+        elevation: 5,
+        zIndex: 50,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        height: '100%',
+        letterSpacing: 1,
+        color: COLOR,
+    },
+    selectedPanel: {
+        position: 'absolute',
+        top: 10,
+        left: 20,
+        right: 20,
+        maxHeight: '60%',
+        borderRadius: 16,
+        backgroundColor: BACKGROUND,
+        padding: 14,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        shadowColor: '#000',
+        elevation: 5,
+        zIndex: 50,
+    },
+    selectedTitle: {
+        fontSize: 12,
+        letterSpacing: 1,
+        color: PLACEHOLDER,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    chipRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    chip: {
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginRight: 8,
+        marginTop: 8,
+    },
+    chipText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    lowOpacity: {
+        opacity: 0.4,
+    },
+    count: {
+        width: 20,
+        height: 20,
+        backgroundColor: "#73EC70",
+        borderRadius: 100,
+        position: 'absolute',
+        top: -10,
+        right: -10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    countText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
 });

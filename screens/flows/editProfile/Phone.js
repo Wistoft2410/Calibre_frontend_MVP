@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, Component } from 'react';
-import { StyleSheet, View, TextInput, Text, StatusBar, KeyboardAvoidingView, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, TextInput, Text, StatusBar, KeyboardAvoidingView, TouchableOpacity, Keyboard, TouchableWithoutFeedback, Platform } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 
 // import GoconInput from '../../../components/GoconInput';
